@@ -1,0 +1,136 @@
+name: Test, Build, Release
+
+on:
+#  push:
+#    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write      # Needed for creating releases and tags
+  packages: write      # Needed for pushing to GitHub Packages
+  id-token: write      # enable GitHub OIDC token issuance for this job
+
+env:
+  SolutionName: ${{github.event.repository.name}}
+  DotNetVersion: 8.0.x
+
+jobs:
+  version:
+    name: Tag / Version
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{steps.tag_version.outputs.new_version}}
+      new_tag: ${{steps.tag_version.outputs.new_tag}}
+      changelog: ${{steps.tag_version.outputs.changelog}}
+    steps:
+    - name: Tag version
+      id: tag_version
+      uses: mathieudutour/github-tag-action@v6.2
+      with:
+        github_token: ${{secrets.GITHUB_TOKEN}}
+        #custom_tag: 1.0.12
+
+  build_net:
+    name: Build
+    needs: [version]
+    runs-on: windows-latest
+    steps:
+    - name: Decoding strong-name key
+      id: sign_key_file
+      uses: timheuer/base64-to-file@v1.2
+      with:
+        fileName: 'Signature.snk'
+        encodedString: ${{secrets.SIGN_ASM_KEY}}
+    - uses: actions/checkout@v4
+ 
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{env.DotNetVersion}}
+    - name: Caching NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    - name: Restore
+      run: dotnet restore
+    - name: Building multi-target project
+      run: dotnet build ${{env.SolutionName}}\${{env.SolutionName}}.csproj --configuration Release --no-restore /p:BaseOutputPath="${{github.workspace}}\bin\" /p:DocumentationFile="${{github.workspace}}\bin\${{env.SolutionName}}.xml" /p:SignAssembly=true /p:Version=${{needs.version.outputs.new_version}} /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+    - name: Listing release directory
+      run: |
+        echo "Listing files in the release directory:"
+        ls ${{github.workspace}}\bin\Release -Recurse
+      shell: pwsh
+    - name: Finding portable executables to sign
+      id: find_binaries
+      run: |
+        $filePaths = Get-ChildItem -Path "${{github.workspace}}\bin\Release" -Recurse -Include "${{ env.SolutionName }}.dll" | ForEach-Object { $_.FullName }
+        $multiLineString = $filePaths -join "`n"
+
+        echo "Found files to sign:"
+        echo $multiLineString
+
+        echo "files_to_sign<<EOF" >> $env:GITHUB_OUTPUT
+        echo $multiLineString >> $env:GITHUB_OUTPUT
+        echo "EOF" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+    - name: Signing portable executables
+      uses: dlemstra/code-sign-action@v1
+      with:
+        certificate: '${{secrets.SIGN_PE_CERTIFICATE}}'
+        password: '${{secrets.SIGN_PE_PASSWORD}}'
+        recursive: false
+        files: ${{steps.find_binaries.outputs.files_to_sign}}
+    - name: Creating NuGet package
+      run: |
+        dotnet pack ${{ env.SolutionName }}.sln --no-build --no-restore -o ${{github.workspace}}\bin\nupkg /p:PackageVersion=${{ needs.version.outputs.new_version }} /p:IncludeSymbols=true /p:DebugType=Portable /p:EmbedUntrackedSources=true /p:PublishRepositoryUrl=true /p:SymbolPackageFormat=snupkg
+    - name: NuGet login (OIDC)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{secrets.NUGET_USER}}
+    - name: Deploying package to GitHub
+      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
+#    - name: Deploying package to NuGet
+#      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.nupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+#TODO: This step is not working. Because PE files are changed after PE certificate injected. So symbols do not match.
+#    There is only one solution possible for the time being: - Inject PDB inside PE files on build (DebugType=Embedded) but I don't like this approach
+#    - name: Deploying SourceLink package to NuGet
+#      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.snupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+    - name: Zipping artifacts
+      run: |
+        $basePath = "${{ github.workspace }}\bin\Release"
+        Get-ChildItem -Path $basePath -Directory | ForEach-Object {
+          $dirName = $_.Name
+          echo "Creating archive for $dirName"
+          $archiveName = "${{env.SolutionName}}_v${{needs.version.outputs.new_version}}_${dirName}.zip"
+          $destinationPath = Join-Path -Path $basePath -ChildPath $archiveName
+          Compress-Archive -Path "$($_.FullName)\*" -DestinationPath $destinationPath -Force
+        }
+      shell: pwsh
+    - name: Publish GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: ${{github.workspace}}\bin\Release\*.zip
+        tag: ${{needs.version.outputs.new_tag}}
+        name: Auto ${{needs.version.outputs.new_tag}}
+        body: ${{needs.version.outputs.changelog}}
+        artifactErrorsFailBuild: true
+        generateReleaseNotes: true
+
+  failure_cleanup:
+    name: Cleanup Tag On Failure
+    needs: [version, build_net]
+    if: always() && needs.build_net.result != 'success'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+        fetch-depth: 0
+    - name: Remove created tag
+      run: |
+        git tag -d ${{needs.version.outputs.new_tag}} || true
+        git push origin :refs/tags/${{needs.version.outputs.new_tag}} || true

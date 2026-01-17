@@ -1,0 +1,15 @@
+<Project>
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageVersion Include="Newtonsoft.Json" Version="13.0.4"/>
+		<!--Analyzers-->
+		<GlobalPackageReference Include="SonarAnalyzer.CSharp" Version="10.8.0.113526">
+			<PrivateAssets>All</PrivateAssets>
+			<IncludeAssets>Runtime; Build; Native; contentfiles; Analyzers; buildtransitive</IncludeAssets>
+		</GlobalPackageReference>
+		<!--Debugging-->
+		<PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0"/>
+	</ItemGroup>
+</Project>

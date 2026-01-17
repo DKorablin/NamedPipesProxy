@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net48;netstandard2.1</TargetFrameworks>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>disable</Nullable>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<Configuration>Release</Configuration>
+	</PropertyGroup>
+	
+	<!--nuspec-->
+	<PropertyGroup>
+		<PackageId>AlphaOmega.NamedPipesProxy</PackageId>
+		<Version>$(Version)</Version>
+		<Title>Named Pipes Proxy for .NET</Title>
+		<Description>A library for creating dialogue between different processes using named pipes in .NET applications with proxy classes.</Description>
+		<Authors>Danila Korablin</Authors>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryUrl>https://github.com/DKorablin/NamedPipesProxy</RepositoryUrl>
+		<PackageTags>named-pipes ipc inter-process-communication remoting proxy rpc</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath="\"/>
+	</ItemGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All"/>
+	</ItemGroup>
+</Project>

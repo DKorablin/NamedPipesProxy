@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/Solution Items/workflows/">
+    <File Path=".github/workflows/release.yml" />
+    <File Path=".github/workflows/test.yml" />
+  </Folder>
+  <Project Path="NamedPipesProxy/NamedPipesProxy.csproj" />
+</Solution>

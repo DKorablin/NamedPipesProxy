@@ -1,0 +1,26 @@
+name: Test, Build
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+  workflow_dispatch:
+
+env:
+  SolutionName: ${{github.event.repository.name}}
+
+jobs:
+  test_net:
+    name: Testing .NET (Windows)
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Testing .NET
+      run: |
+        dotnet test --no-restore --framework net8.0 --configuration Release
