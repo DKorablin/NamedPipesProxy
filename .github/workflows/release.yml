@@ -22,7 +22,7 @@ permissions:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
-  ArtifactsDir: ${{github.workspace}}\bin
+  ArtifactsDir: ${{github.workspace}}\bin\
 
 jobs:
   version:
