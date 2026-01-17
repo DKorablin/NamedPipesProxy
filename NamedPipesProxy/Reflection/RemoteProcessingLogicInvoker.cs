@@ -17,18 +17,25 @@ using ProxyBaseClass = System.Reflection.DispatchProxy;
 
 namespace AlphaOmega.IO.Reflection
 {
-	/// <summary>Internal invoker that handles the actual method interception and message routing using DispatchProxy for .NET 5+.</summary>
+	/// <summary>Handles method interception and routes calls to all connected workers, using RealProxy for .NET Framework or DispatchProxy for .NET Standard.</summary>
 	public class RemoteProcessingLogicInvoker : ProxyBaseClass
 	{
 		private Type _interfaceType;
 		private readonly Dictionary<String, MethodInfo> _methodsCache = new Dictionary<String, MethodInfo>();
 
+		/// <summary>Gets the registry server managing worker connections.</summary>
 		protected IRegistryServer RegisterServer { get; private set; }
 
+		/// <summary>Gets the cancellation token for the proxy lifecycle.</summary>
 		protected CancellationToken CancellationToken { get; private set; }
 
+		/// <summary>Initializes a new instance of the <see cref="RemoteProcessingLogicInvoker"/> class for DispatchProxy usage.</summary>
 		public RemoteProcessingLogicInvoker() { }
 
+		/// <summary>Initializes a new instance of the <see cref="RemoteProcessingLogicInvoker"/> class with the specified interface type for RealProxy usage.</summary>
+		/// <param name="interfaceType">The interface type to proxy.</param>
+		/// <exception cref="ArgumentNullException">Thrown when <paramref name="interfaceType"/> is null.</exception>
+		/// <exception cref="ArgumentException">Thrown when <paramref name="interfaceType"/> is not an interface.</exception>
 		public RemoteProcessingLogicInvoker(Type interfaceType)
 #if NETFRAMEWORK
 			: base(interfaceType)
@@ -41,6 +48,9 @@ namespace AlphaOmega.IO.Reflection
 		}
 
 #if NETFRAMEWORK
+		/// <summary>Intercepts method calls on the proxy for .NET Framework using RealProxy.</summary>
+		/// <param name="msg">The message containing method call information.</param>
+		/// <returns>A return message containing the result or error.</returns>
 		public override IMessage Invoke(IMessage msg)
 		{
 			var methodCall = msg as IMethodCallMessage;
@@ -62,10 +72,20 @@ namespace AlphaOmega.IO.Reflection
 			}
 		}
 #else
+		/// <summary>Intercepts method calls on the proxy for .NET Standard using DispatchProxy.</summary>
+		/// <param name="targetMethod">The method being invoked.</param>
+		/// <param name="args">The arguments passed to the method.</param>
+		/// <returns>The result of the method invocation.</returns>
 		protected override Object Invoke(MethodInfo targetMethod, Object[] args)
 			=> this.InvokeImpl(targetMethod, args);
 #endif
 
+		/// <summary>Initializes the proxy with registry server, cancellation token, and caches interface methods.</summary>
+		/// <typeparam name="T">The processing logic interface type.</typeparam>
+		/// <param name="registerServer">The registry server managing worker connections.</param>
+		/// <param name="cancellationToken">Cancellation token for the proxy lifecycle.</param>
+		/// <exception cref="InvalidOperationException">Thrown when <typeparamref name="T"/> is not an interface.</exception>
+		/// <exception cref="ArgumentNullException">Thrown when <paramref name="registerServer"/> is null.</exception>
 		public void Initialize<T>(IRegistryServer registerServer, CancellationToken cancellationToken) where T : class
 		{
 			this._interfaceType = typeof(T);
@@ -80,6 +100,11 @@ namespace AlphaOmega.IO.Reflection
 				this._methodsCache[method.Name] = method;
 		}
 
+		/// <summary>Implements the method invocation logic by creating an RPC message, sending it to all workers, and handling the response.</summary>
+		/// <param name="method">The method being invoked.</param>
+		/// <param name="args">The arguments passed to the method.</param>
+		/// <returns>The result of the method invocation, which may be a Task, Task&lt;T&gt;, or a direct value.</returns>
+		/// <exception cref="InvalidOperationException">Thrown when the proxy is not properly initialized.</exception>
 		private Object InvokeImpl(MethodInfo method, Object[] args)
 		{
 			if(method == null || this.RegisterServer == null)
@@ -116,7 +141,11 @@ namespace AlphaOmega.IO.Reflection
 			}
 		}
 
-		/// <summary>Sends a request and waits for response.</summary>
+		/// <summary>Sends an RPC request to all connected workers and returns the first non-null, non-error response.</summary>
+		/// <param name="request">The RPC request message.</param>
+		/// <param name="responseType">The expected response type.</param>
+		/// <returns>The deserialized response from the first worker that provides a valid result, or null if all workers return null.</returns>
+		/// <exception cref="InvalidOperationException">Thrown when no workers are connected or when a worker returns an error response.</exception>
 		protected virtual async Task<Object> SendRequestAndGetResponseAsync(PipeMessage request, Type responseType)
 		{
 			var workerIds = this.RegisterServer.ConnectedWorkerIDs.ToArray();
@@ -153,6 +182,10 @@ namespace AlphaOmega.IO.Reflection
 
 		private static readonly MethodInfo _castTaskMethod = typeof(RemoteProcessingLogicInvoker).GetMethod(nameof(CastTask), BindingFlags.NonPublic | BindingFlags.Static);
 
+		/// <summary>Casts a Task&lt;Object&gt; to a Task&lt;T&gt; to match the expected return type.</summary>
+		/// <typeparam name="T">The target type for the task result.</typeparam>
+		/// <param name="task">The task returning an Object.</param>
+		/// <returns>A task returning the casted result.</returns>
 		private static async Task<T> CastTask<T>(Task<Object> task)
 		{
 			var result = await task;

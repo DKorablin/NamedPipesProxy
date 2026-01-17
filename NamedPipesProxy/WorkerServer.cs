@@ -141,7 +141,7 @@ namespace AlphaOmega.IO
 				var result = await this.InvokeMethodAsync(message, token);
 
 				return result == null
-					? new PipeMessage(message, PipeMessageType.Null.ToString(), new NullResponse())
+					? new PipeMessage(message, PipeMessageType.Null.ToString(), NullResponse.Instance)
 					: result;
 			}catch(InvalidOperationException exc)
 			{
