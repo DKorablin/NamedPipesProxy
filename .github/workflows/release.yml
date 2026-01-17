@@ -116,8 +116,8 @@ jobs:
 #      id: login
 #      with:
 #        user: ${{secrets.NUGET_USER}}
-    - name: Deploying package to GitHub
-      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
+    - name: Deploying package to GitHub (Only nupkg because snupkg is not supported by GitHub)
+      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.nupkg --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
 #    - name: Deploying package to NuGet
 #      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.nupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
 #TODO: This step is not working. Because PE files are changed after PE certificate injected. So symbols do not match.
