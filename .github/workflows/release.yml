@@ -1,9 +1,18 @@
-name: Test, Build, Release
+name: Build, Release
 
 on:
 #  push:
-#    branches: [ "master" ]
+#    branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      dotNetVersion:
+        description: 'Determine the version of .NET used to configure the environment'
+        required: false
+        default: '8.0.x'
+      newVersion:
+        description: 'Optionally specify a new version number (overrides automatic versioning)'
+        required: false
+        default: ''
 
 permissions:
   contents: write      # Needed for creating releases and tags
@@ -12,7 +21,8 @@ permissions:
 
 env:
   SolutionName: ${{github.event.repository.name}}
-  DotNetVersion: 8.0.x
+  DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
+  ArtifactsDir: ${{github.workspace}}\bin
 
 jobs:
   version:
@@ -28,7 +38,7 @@ jobs:
       uses: mathieudutour/github-tag-action@v6.2
       with:
         github_token: ${{secrets.GITHUB_TOKEN}}
-        #custom_tag: 1.0.12
+        custom_tag: ${{github.event.inputs.newVersion}}
 
   build_net:
     name: Build
@@ -57,7 +67,14 @@ jobs:
     - name: Restore
       run: dotnet restore
     - name: Building multi-target project
-      run: dotnet build ${{env.SolutionName}}\${{env.SolutionName}}.csproj --configuration Release --no-restore /p:BaseOutputPath="${{github.workspace}}\bin\" /p:DocumentationFile="${{github.workspace}}\bin\${{env.SolutionName}}.xml" /p:SignAssembly=true /p:Version=${{needs.version.outputs.new_version}} /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+      run: >
+       dotnet build ${{env.SolutionName}}\${{env.SolutionName}}.csproj
+       /p:configuration=Release --no-restore
+       /p:BaseOutputPath="${{env.ArtifactsDir}}"
+       /p:GenerateDocumentationFile=true
+       /p:SignAssembly=true
+       /p:Version=${{needs.version.outputs.new_version}}
+       /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
     - name: Listing release directory
       run: |
         echo "Listing files in the release directory:"
@@ -66,7 +83,7 @@ jobs:
     - name: Finding portable executables to sign
       id: find_binaries
       run: |
-        $filePaths = Get-ChildItem -Path "${{github.workspace}}\bin\Release" -Recurse -Include "${{ env.SolutionName }}.dll" | ForEach-Object { $_.FullName }
+        $filePaths = Get-ChildItem -Path "${{github.workspace}}\bin\Release" -Recurse -Include "${{env.SolutionName}}.dll" | ForEach-Object { $_.FullName }
         $multiLineString = $filePaths -join "`n"
 
         echo "Found files to sign:"
@@ -84,13 +101,21 @@ jobs:
         recursive: false
         files: ${{steps.find_binaries.outputs.files_to_sign}}
     - name: Creating NuGet package
-      run: |
-        dotnet pack ${{ env.SolutionName }}.sln --no-build --no-restore -o ${{github.workspace}}\bin\nupkg /p:PackageVersion=${{ needs.version.outputs.new_version }} /p:IncludeSymbols=true /p:DebugType=Portable /p:EmbedUntrackedSources=true /p:PublishRepositoryUrl=true /p:SymbolPackageFormat=snupkg
-    - name: NuGet login (OIDC)
-      uses: NuGet/login@v1
-      id: login
-      with:
-        user: ${{secrets.NUGET_USER}}
+      run: >
+        dotnet pack ${{env.SolutionName}}.sln --no-build --no-restore -c Release -o ${{github.workspace}}\bin\nupkg
+        /p:PackageVersion=${{needs.version.outputs.new_version}}
+        /p:GenerateDocumentationFile=true
+        /p:IncludeSymbols=true
+        /p:DebugType=Portable
+        /p:EmbedUntrackedSources=true
+        /p:PublishRepositoryUrl=true
+        /p:EnablePackageValidation=true
+        /p:SymbolPackageFormat=snupkg
+#    - name: NuGet login (OIDC)
+#      uses: NuGet/login@v1
+#      id: login
+#      with:
+#        user: ${{secrets.NUGET_USER}}
     - name: Deploying package to GitHub
       run: dotnet nuget push ${{github.workspace}}\bin\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
 #    - name: Deploying package to NuGet
@@ -101,7 +126,7 @@ jobs:
 #      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.snupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
     - name: Zipping artifacts
       run: |
-        $basePath = "${{ github.workspace }}\bin\Release"
+        $basePath = "${{github.workspace}}\bin\Release"
         Get-ChildItem -Path $basePath -Directory | ForEach-Object {
           $dirName = $_.Name
           echo "Creating archive for $dirName"
