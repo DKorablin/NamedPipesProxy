@@ -102,7 +102,7 @@ jobs:
         files: ${{steps.find_binaries.outputs.files_to_sign}}
     - name: Creating NuGet package
       run: >
-        dotnet pack ${{env.SolutionName}}.sln --no-build --no-restore -c Release -o ${{github.workspace}}\bin\nupkg
+        dotnet pack ${{env.SolutionName}}.slnx --no-build --no-restore -c Release -o ${{github.workspace}}\bin\nupkg
         /p:PackageVersion=${{needs.version.outputs.new_version}}
         /p:GenerateDocumentationFile=true
         /p:IncludeSymbols=true
