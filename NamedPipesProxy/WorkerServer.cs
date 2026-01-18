@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.IO.Pipes;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,12 +92,9 @@ namespace AlphaOmega.IO
 
 		private async Task RegisterWorkerAsync(CancellationToken token)
 		{
-			var registryPipe = new NamedPipeClientStream(".", this.RegistryPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-
 			TraceLogic.TraceSource.TraceInformation("Connecting to registry...");
-			await registryPipe.ConnectAsync(5000, token);
 
-			this._connection = new ServerSideConnection(registryPipe);
+			this._connection = await ServerSideConnection.CreateClientAsync(".", this.RegistryPipeName, 5000, token);
 
 			TraceLogic.TraceSource.TraceInformation("Registering with registry...");
 			await SendMessageAsync(this._connection,

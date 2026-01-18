@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,29 +65,26 @@ namespace AlphaOmega.IO
 			{
 				var linkedToken = linkedCts.Token;
 
-				NamedPipeServerStream pipe = null;
 				try
 				{
 					this.IsStarted = true;
 					while(!linkedToken.IsCancellationRequested)
 					{
-						pipe = new NamedPipeServerStream(this.PipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+						ServerSideConnection connection = null;
 
 						try
 						{
-							await pipe.WaitForConnectionAsync(linkedToken);
-							var connectionId = Guid.NewGuid();
-							_ = ListenConnectionAsync(new ServerSideConnection(connectionId, pipe), linkedToken);
+							connection = await ServerSideConnection.CreateServerAsync(this.PipeName, linkedToken);
+							_ = this.ListenConnectionAsync(connection, linkedToken);
 						} catch(OperationCanceledException)
 						{
-							pipe.Dispose();
+							connection?.Dispose();
 							break;
 						}
 					}
 				} finally
 				{
 					this.IsStarted = false;
-					pipe?.Dispose();
 				}
 			}
 		}
