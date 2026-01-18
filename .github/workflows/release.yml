@@ -1,3 +1,21 @@
+# Workflow Description:
+# This workflow automates the build, signing, packaging, and release process for the NamedPipesProxy library.
+# 
+# Steps Overview:
+# 1. Version/Tag Creation - Automatically generates a new version tag based on commit history (or uses manual input)
+# 2. Strong-Name Key Decoding - Decodes the assembly signing key from secrets
+# 3. .NET SDK Setup - Configures the .NET environment for building multi-target projects
+# 4. NuGet Package Caching - Caches NuGet packages to speed up subsequent builds
+# 5. Dependency Restoration - Restores all project dependencies
+# 6. Multi-Target Build - Builds the project for .NET Framework 4.8, .NET Standard 2.1, and .NET 9
+# 7. Binary Discovery - Locates compiled DLL files for code signing
+# 8. Code Signing - Signs the compiled binaries with a certificate for authenticity
+# 9. NuGet Package Creation - Creates NuGet packages (.nupkg) with symbols (.snupkg)
+# 10. Package Deployment - Publishes packages to GitHub Packages (and optionally NuGet.org)
+# 11. Artifact Zipping - Compresses build outputs for each target framework
+# 12. GitHub Release - Creates a GitHub release with artifacts and changelog
+# 13. Cleanup on Failure - Removes created tags if the build fails
+
 name: Build, Release
 
 on:
@@ -78,12 +96,12 @@ jobs:
     - name: Listing release directory
       run: |
         echo "Listing files in the release directory:"
-        ls ${{github.workspace}}\bin\Release -Recurse
+        ls ${{env.ArtifactsDir}}Release -Recurse
       shell: pwsh
     - name: Finding portable executables to sign
       id: find_binaries
       run: |
-        $filePaths = Get-ChildItem -Path "${{github.workspace}}\bin\Release" -Recurse -Include "${{env.SolutionName}}.dll" | ForEach-Object { $_.FullName }
+        $filePaths = Get-ChildItem -Path "${{env.ArtifactsDir}}Release" -Recurse -Include "${{env.SolutionName}}.dll" | ForEach-Object { $_.FullName }
         $multiLineString = $filePaths -join "`n"
 
         echo "Found files to sign:"
@@ -102,7 +120,7 @@ jobs:
         files: ${{steps.find_binaries.outputs.files_to_sign}}
     - name: Creating NuGet package
       run: >
-        dotnet pack ${{env.SolutionName}}.slnx --no-build --no-restore -c Release -o ${{github.workspace}}\bin\nupkg
+        dotnet pack ${{env.SolutionName}}.slnx --no-build --no-restore -c Release -o ${{env.ArtifactsDir}}nupkg
         /p:PackageVersion=${{needs.version.outputs.new_version}}
         /p:GenerateDocumentationFile=true
         /p:IncludeSymbols=true
@@ -117,16 +135,16 @@ jobs:
 #      with:
 #        user: ${{secrets.NUGET_USER}}
     - name: Deploying package to GitHub (Only nupkg because snupkg is not supported by GitHub)
-      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.nupkg --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
+      run: dotnet nuget push ${{env.ArtifactsDir}}nupkg\*.nupkg --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
 #    - name: Deploying package to NuGet
-#      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.nupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+#      run: dotnet nuget push ${{env.ArtifactsDir}}nupkg\*.nupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
 #TODO: This step is not working. Because PE files are changed after PE certificate injected. So symbols do not match.
 #    There is only one solution possible for the time being: - Inject PDB inside PE files on build (DebugType=Embedded) but I don't like this approach
 #    - name: Deploying SourceLink package to NuGet
-#      run: dotnet nuget push ${{github.workspace}}\bin\nupkg\*.snupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+#      run: dotnet nuget push ${{env.ArtifactsDir}}nupkg\*.snupkg --skip-duplicate --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
     - name: Zipping artifacts
       run: |
-        $basePath = "${{github.workspace}}\bin\Release"
+        $basePath = "${{env.ArtifactsDir}}Release"
         Get-ChildItem -Path $basePath -Directory | ForEach-Object {
           $dirName = $_.Name
           echo "Creating archive for $dirName"
@@ -138,7 +156,7 @@ jobs:
     - name: Publish GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: ${{github.workspace}}\bin\Release\*.zip
+        artifacts: ${{env.ArtifactsDir}}Release\*.zip
         tag: ${{needs.version.outputs.new_tag}}
         name: Auto ${{needs.version.outputs.new_tag}}
         body: ${{needs.version.outputs.changelog}}
