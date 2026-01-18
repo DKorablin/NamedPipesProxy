@@ -112,7 +112,7 @@ namespace AlphaOmega.IO.Reflection
 
 			PipeMessage request = new PipeMessage(method.Name, args);
 
-			PipeServerBase.TraceSource.TraceInformation("[RPC Proxy] Sending request: {0}", request);
+			TraceLogic.TraceSource.TraceInformation("[RPC Proxy] Sending request: {0}", request);
 
 			Type returnType = method.ReturnType;
 			Boolean isTask = returnType == typeof(Task);

@@ -95,17 +95,17 @@ namespace AlphaOmega.IO
 		{
 			var registryPipe = new NamedPipeClientStream(".", this.RegistryPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 
-			PipeServerBase.TraceSource.TraceInformation("Connecting to registry...");
+			TraceLogic.TraceSource.TraceInformation("Connecting to registry...");
 			await registryPipe.ConnectAsync(5000, token);
 
 			this._connection = new ServerSideConnection(registryPipe);
 
-			PipeServerBase.TraceSource.TraceInformation("Registering with registry...");
+			TraceLogic.TraceSource.TraceInformation("Registering with registry...");
 			await SendMessageAsync(this._connection,
 				new PipeMessage(PipeMessageType.RegisterWorker.ToString(), new RegisterWorkerRequest(this.WorkerId, this.PipeName)),
 				token);
 
-			PipeServerBase.TraceSource.TraceInformation("Connected to registry");
+			TraceLogic.TraceSource.TraceInformation("Connected to registry");
 			this.IsStarted = true;
 		}
 
@@ -120,12 +120,12 @@ namespace AlphaOmega.IO
 				// Expected on shutdown
 			} catch(IOException exc)
 			{
-				PipeServerBase.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
+				TraceLogic.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
 				this._cts.Cancel();
 			}
 			catch(Exception exc)
 			{
-				PipeServerBase.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
+				TraceLogic.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
 			}
 			finally
 			{
@@ -150,7 +150,7 @@ namespace AlphaOmega.IO
 			catch(Exception exc)
 			{
 				exc.Data.Add(nameof(message.Type), message.Type);
-				PipeServerBase.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
+				TraceLogic.TraceSource.TraceData(System.Diagnostics.TraceEventType.Error, 9, exc);
 				return new PipeMessage(message, PipeMessageType.Error.ToString(), new ErrorResponse(exc.Message));
 			}
 		}
@@ -193,7 +193,7 @@ namespace AlphaOmega.IO
 				await this.ConnectionLost.Invoke();
 
 			this.IsStarted = false;
-			PipeServerBase.TraceSource.TraceEvent(System.Diagnostics.TraceEventType.Stop, 1, "Worker server fully stopped and cleaned up.");
+			TraceLogic.TraceSource.TraceEvent(System.Diagnostics.TraceEventType.Stop, 1, "Worker server fully stopped and cleaned up.");
 		}
 
 		/// <summary>Attempts to handle an incoming request using the registered <see cref="RequestReceived"/> event handler.</summary>

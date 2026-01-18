@@ -15,7 +15,7 @@ namespace AlphaOmega.IO
 		/// <param name="token">Cancellation token.</param>
 		public static async Task WriteMessageAsync(Stream stream, PipeMessage message, CancellationToken token)
 		{
-			PipeServerBase.TraceSource.TraceInformation("Writing message: {0}", message.ToString());
+			TraceLogic.TraceSource.TraceInformation("Writing message: {0}", message.ToString());
 
 			Byte[] data = PipeMessage.Serialize(message);
 			Byte[] length = BitConverter.GetBytes(data.Length);

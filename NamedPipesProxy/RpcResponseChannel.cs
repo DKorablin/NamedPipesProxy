@@ -63,7 +63,7 @@ namespace AlphaOmega.IO
 				return true;
 			}
 
-			PipeServerBase.TraceSource.TraceEvent(System.Diagnostics.TraceEventType.Warning, 8, "No pending request found for response. Message={0}", message.ToString());
+			TraceLogic.TraceSource.TraceEvent(System.Diagnostics.TraceEventType.Warning, 8, "No pending request found for response. Message={0}", message.ToString());
 			return false;
 		}
 

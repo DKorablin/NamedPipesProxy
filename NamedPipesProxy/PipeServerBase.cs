@@ -10,8 +10,6 @@ namespace AlphaOmega.IO
 	/// <summary>Base class for pipe-based servers that encapsulates common read, handle, and respond logic.</summary>
 	public abstract class PipeServerBase
 	{
-		internal static readonly TraceSource TraceSource = new TraceSource("AlphaOmega.NamedPipes");
-
 		/// <summary>Sends a message on the pipe.</summary>
 		/// <param name="connection">Server-side pipe connection.</param>
 		/// <param name="message">Message to send.</param>
@@ -45,12 +43,11 @@ namespace AlphaOmega.IO
 						await this.SendMessageAsync(connection, response, token);
 				} catch(EndOfStreamException)
 				{
-					PipeServerBase.TraceSource.TraceEvent(TraceEventType.Stop, 1, "Lost connection to named pipe instance");
+					TraceLogic.TraceSource.TraceEvent(TraceEventType.Stop, 1, "Lost connection to named pipe instance");
 					break;
 				} catch(IOException ex)
 				{
-					// Pipe communication error
-					PipeServerBase.TraceSource.TraceEvent(TraceEventType.Error, 9, "Pipe communication error: {0}", ex.Message);
+					TraceLogic.TraceSource.TraceEvent(TraceEventType.Error, 9, "Pipe communication error: {0}", ex.Message);
 					throw;
 				}
 			}

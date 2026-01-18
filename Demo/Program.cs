@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using AlphaOmega.IO;
 
 namespace Demo
 {
@@ -8,6 +10,11 @@ namespace Demo
 	{
 		private async static Task Main(String[] args)
 		{
+			Trace.AutoFlush = true;
+			TraceLogic.TraceSource.Listeners.Clear();
+			TraceLogic.TraceSource.Listeners.Add(new ConsoleTraceListener());
+			TraceLogic.TraceSource.Switch.Level = SourceLevels.All;
+
 			using(var cts = new CancellationTokenSource())
 			{
 				Console.CancelKeyPress += (_, e) =>

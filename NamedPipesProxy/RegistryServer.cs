@@ -125,13 +125,13 @@ namespace AlphaOmega.IO
 				await listenTask;
 			} catch(EndOfStreamException)
 			{
-				PipeServerBase.TraceSource.TraceInformation("Connection {0} closed", connection.ConnectionId);
+				TraceLogic.TraceSource.TraceInformation("Connection {0} closed", connection.ConnectionId);
 			} catch(OperationCanceledException)
 			{
 				// Server shutting down
 			} catch(Exception exc)
 			{
-				PipeServerBase.TraceSource.TraceEvent(TraceEventType.Error, 9, "Error in connection {0}: {1}", connection.ConnectionId, exc);
+				TraceLogic.TraceSource.TraceEvent(TraceEventType.Error, 9, "Error in connection {0}: {1}", connection.ConnectionId, exc);
 			} finally
 			{
 				// Unregister any worker on this connection
@@ -193,7 +193,7 @@ namespace AlphaOmega.IO
 		private async Task RegisterWorker(ServerSideWorker worker)
 		{
 			this._workers[worker.WorkerId] = worker;
-			PipeServerBase.TraceSource.TraceInformation("Registering worker {0} at pipe {1}. Total: {2:N0}", worker.WorkerId, worker.WorkerPipeName, this._workers.Count);
+			TraceLogic.TraceSource.TraceInformation("Registering worker {0} at pipe {1}. Total: {2:N0}", worker.WorkerId, worker.WorkerPipeName, this._workers.Count);
 
 			if(this.WorkerConnected != null)
 				await this.WorkerConnected.Invoke(worker.WorkerId);
@@ -202,7 +202,7 @@ namespace AlphaOmega.IO
 		private async Task UnregisterWorker(ServerSideWorker worker)
 		{
 			this._workers.Remove(worker.WorkerId);
-			PipeServerBase.TraceSource.TraceInformation("Unregistering worker {0} at pipe {1}. Total: {2:N0}", worker.WorkerId, worker.WorkerPipeName, this._workers.Count);
+			TraceLogic.TraceSource.TraceInformation("Unregistering worker {0} at pipe {1}. Total: {2:N0}", worker.WorkerId, worker.WorkerPipeName, this._workers.Count);
 
 			if(this.WorkerDisconnected != null)
 				await this.WorkerDisconnected.Invoke(worker.WorkerId);
