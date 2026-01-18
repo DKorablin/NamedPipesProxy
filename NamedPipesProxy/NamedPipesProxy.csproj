@@ -4,6 +4,7 @@
 		<TargetFrameworks>net48;netstandard2.1</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<ImplicitUsings>disable</ImplicitUsings>
+		<DefaultNamespace>AlphaOmega.IO</DefaultNamespace>
 		<Nullable>disable</Nullable>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>

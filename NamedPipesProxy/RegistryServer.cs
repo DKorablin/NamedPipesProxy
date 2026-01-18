@@ -9,18 +9,18 @@ using System.Threading.Tasks;
 using AlphaOmega.IO.DTOs;
 using AlphaOmega.IO.Interfaces;
 using AlphaOmega.IO.Reflection;
+using AlphaOmega.IO;
 
 namespace AlphaOmega.IO
 {
 	/// <summary>Registry server that manages worker registrations and routes requests via named pipes.</summary>
-	public sealed class RegistryServer : PipeServerBase, IRegistryServer
+	public sealed class RegistryServer : IRegistryServer
 	{
 		internal const String RegistryPipeName = "AlphaOmega.NamedPipes.Registry";
 
+		private readonly IPipeConnectionFactory _connectionFactory;
 		private readonly Dictionary<String, ServerSideWorker> _workers = new Dictionary<String, ServerSideWorker>(StringComparer.OrdinalIgnoreCase);
-
-		private readonly ConcurrentDictionary<Guid, ServerSideConnection> _activeConnections = new ConcurrentDictionary<Guid, ServerSideConnection>();
-
+		private readonly ConcurrentDictionary<Guid, IPipeConnection> _activeConnections = new ConcurrentDictionary<Guid, IPipeConnection>();
 		private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
 		/// <inheritdoc/>
@@ -49,13 +49,19 @@ namespace AlphaOmega.IO
 			: this(RegistryPipeName) { }
 
 		/// <summary>Initializes a new instance of the registry server with a custom pipe name.</summary>
-		/// <param name="pipeName">Pipe name used by the server.</param>
-		public RegistryServer(String pipeName)
+		/// <param name="registryPipeName">Pipe name used by the server.</param>
+		public RegistryServer(String registryPipeName)
+			: this(registryPipeName, new ServerSideConnection.ServerSideConnectionFactory())
 		{
-			if(String.IsNullOrWhiteSpace(pipeName))
-				throw new ArgumentNullException(nameof(pipeName));
+		}
 
-			this.PipeName = pipeName;
+		internal RegistryServer(String registryPipeName, IPipeConnectionFactory connectionFactory)
+		{
+			if(String.IsNullOrWhiteSpace(registryPipeName))
+				throw new ArgumentNullException(nameof(registryPipeName));
+
+			this.PipeName = registryPipeName;
+			this._connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 		}
 
 		/// <inheritdoc/>
@@ -70,16 +76,20 @@ namespace AlphaOmega.IO
 					this.IsStarted = true;
 					while(!linkedToken.IsCancellationRequested)
 					{
-						ServerSideConnection connection = null;
+						IPipeConnection connection = null;
 
 						try
 						{
-							connection = await ServerSideConnection.CreateServerAsync(this.PipeName, linkedToken);
+							connection = await this._connectionFactory.CreateServerAsync(this.PipeName, linkedToken);
 							_ = this.ListenConnectionAsync(connection, linkedToken);
 						} catch(OperationCanceledException)
 						{
 							connection?.Dispose();
 							break;
+						} catch(Exception exc)
+						{
+							connection?.Dispose();
+							TraceLogic.TraceSource.TraceData(TraceEventType.Error, 9, exc);
 						}
 					}
 				} finally
@@ -100,7 +110,7 @@ namespace AlphaOmega.IO
 		/// <summary>Listens to a connection, processes messages, and handles registration lifecycle.</summary>
 		/// <param name="connection">Server-side connection.</param>
 		/// <param name="token">Cancellation token.</param>
-		private async Task ListenConnectionAsync(ServerSideConnection connection, CancellationToken token)
+		private async Task ListenConnectionAsync(IPipeConnection connection, CancellationToken token)
 		{
 			try
 			{
@@ -114,7 +124,7 @@ namespace AlphaOmega.IO
 				var registerPayload = firstMessage.Deserialize<RegisterWorkerRequest>();
 				var worker = new ServerSideWorker(registerPayload.WorkerId, registerPayload.PipeName, connection.ConnectionId);
 
-				var listenTask = this.ListenLoopAsync(connection, HandleConnectionMessageAsync, token);
+				var listenTask = connection.ListenLoopAsync(HandleConnectionMessageAsync, token);
 
 				await this.RegisterWorker(worker);
 
@@ -175,7 +185,7 @@ namespace AlphaOmega.IO
 
 			try
 			{
-				await this.SendMessageAsync(connection, request, token);
+				await connection.SendMessageAsync(request, token);
 			} catch(EndOfStreamException)
 			{
 				await this.UnregisterWorker(worker);

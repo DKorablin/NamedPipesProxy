@@ -11,5 +11,6 @@
     <File Path=".github/workflows/test.yml" />
   </Folder>
   <Project Path="Demo/Demo.csproj" />
+  <Project Path="NamedPipesProxy.Tests/NamedPipesProxy.Tests.csproj" />
   <Project Path="NamedPipesProxy/NamedPipesProxy.csproj" />
 </Solution>

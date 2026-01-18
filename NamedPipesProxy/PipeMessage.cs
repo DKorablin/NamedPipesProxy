@@ -3,10 +3,11 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using AlphaOmega.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace AlphaOmega.IO.DTOs
+namespace AlphaOmega.IO
 {
 	/// <summary>Represents a message for inter-process communication via named pipes.</summary>
 	public sealed class PipeMessage

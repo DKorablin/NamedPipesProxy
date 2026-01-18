@@ -1,13 +1,60 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
+using AlphaOmega.IO.Interfaces;
 
 namespace AlphaOmega.IO
 {
 	/// <summary>Represents a server-side client connection over a named pipe.</summary>
-	public sealed class ServerSideConnection : IDisposable
+	public sealed class ServerSideConnection : IPipeConnection
 	{
+		public class ServerSideConnectionFactory : IPipeConnectionFactory
+		{
+			/// <inheritdoc/>
+			async Task<IPipeConnection> IPipeConnectionFactory.CreateServerAsync(String pipeName, CancellationToken token)
+			{
+				NamedPipeServerStream pipe = new NamedPipeServerStream(
+				pipeName,
+				PipeDirection.InOut,
+				NamedPipeServerStream.MaxAllowedServerInstances,
+				PipeTransmissionMode.Byte,
+				PipeOptions.Asynchronous);
+
+				try
+				{
+					await pipe.WaitForConnectionAsync(token);
+					return new ServerSideConnection(pipe);
+				} catch
+				{
+					pipe?.Dispose();
+					throw;
+				}
+			}
+
+			/// <inheritdoc/>
+			async Task<IPipeConnection> IPipeConnectionFactory.CreateClientAsync(String serverName, String pipeName, Int32 timeout, CancellationToken token)
+			{
+				NamedPipeClientStream pipe = new NamedPipeClientStream(
+				serverName,
+				pipeName,
+				PipeDirection.InOut,
+				PipeOptions.Asynchronous);
+
+				try
+				{
+					await pipe.ConnectAsync(timeout, token);
+					return new ServerSideConnection(pipe);
+				} catch
+				{
+					pipe?.Dispose();
+					throw;
+				}
+			}
+		}
+
 		/// <summary>Gets the unique identifier for this connection.</summary>
 		public Guid ConnectionId { get; }
 
@@ -33,55 +80,65 @@ namespace AlphaOmega.IO
 		public ServerSideConnection(Guid connectionId, PipeStream pipe)
 		{
 			this.ConnectionId = connectionId;
-			this.Pipe = pipe;
+			this.Pipe = pipe ?? throw new ArgumentNullException(nameof(pipe));
 		}
 
-		/// <summary>Creates a server-side connection that waits for a client to connect.</summary>
-		/// <param name="pipeName">The name of the pipe to create.</param>
+		/// <summary>Sends a message on the pipe.</summary>
+		/// <param name="message">Message to send.</param>
 		/// <param name="token">Cancellation token.</param>
-		/// <returns>A new <see cref="ServerSideConnection"/> with an established connection.</returns>
-		public static async Task<ServerSideConnection> CreateServerAsync(String pipeName, CancellationToken token)
+		public async Task SendMessageAsync(PipeMessage message, CancellationToken token)
 		{
-			NamedPipeServerStream pipe = new NamedPipeServerStream(
-				pipeName,
-				PipeDirection.InOut,
-				NamedPipeServerStream.MaxAllowedServerInstances,
-				PipeTransmissionMode.Byte,
-				PipeOptions.Asynchronous);
+			TraceLogic.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "[{0}] Sending message: {1}", this.ConnectionId, message.ToString());
 
+			await this.ReadWriteLock.WaitAsync(token);
 			try
 			{
-				await pipe.WaitForConnectionAsync(token);
-				return new ServerSideConnection(pipe);
-			} catch
+				await message.ToStream(this.Pipe, token);
+			} finally
 			{
-				pipe?.Dispose();
-				throw;
+				this.ReadWriteLock.Release();
+				TraceLogic.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "[{0}] Message sent: {1}", this.ConnectionId, message.ToString());
 			}
 		}
 
-		/// <summary>Creates a client-side connection to a registry server.</summary>
-		/// <param name="serverName">The server name (e.g., "." for local).</param>
-		/// <param name="pipeName">The name of the pipe to connect to.</param>
-		/// <param name="timeout">Connection timeout in milliseconds.</param>
+		/// <summary>Receives a message from the pipe.</summary>
 		/// <param name="token">Cancellation token.</param>
-		/// <returns>A new <see cref="ServerSideConnection"/> with an established connection.</returns>
-		public static async Task<ServerSideConnection> CreateClientAsync(String serverName, String pipeName, Int32 timeout, CancellationToken token)
+		/// <returns>The received message.</returns>
+		public async Task<PipeMessage> ReceiveMessageAsync(CancellationToken token)
 		{
-			NamedPipeClientStream pipe = new NamedPipeClientStream(
-				serverName,
-				pipeName,
-				PipeDirection.InOut,
-				PipeOptions.Asynchronous);
-
+			TraceLogic.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "[{0}] Waiting for messages...", this.ConnectionId);
+			await this.ReadWriteLock.WaitAsync(token);
 			try
 			{
-				await pipe.ConnectAsync(timeout, token);
-				return new ServerSideConnection(pipe);
-			} catch
+				var result = await PipeMessage.FromStream(this.Pipe, token);
+				TraceLogic.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "[{0}] Message {1} received", this.ConnectionId, result?.ToString() ?? "null");
+				return result;
+			} finally
 			{
-				pipe?.Dispose();
-				throw;
+				this.ReadWriteLock.Release();
+			}
+		}
+
+		/// <summary>Reads and sends messages in a loop until disconnection or cancellation.</summary>
+		/// <param name="connection">Server-side pipe connection.</param>
+		/// <param name="handler">Message handler that produces a response.</param>
+		/// <param name="token">Cancellation token.</param>
+		public async Task ListenLoopAsync(Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler, CancellationToken token)
+		{
+			while(!token.IsCancellationRequested && this.Pipe.IsConnected)
+			{
+				try
+				{
+					PipeMessage message = await PipeMessage.FromStream(this.Pipe, token);
+
+					PipeMessage response = await handler.Invoke(message, token);
+					if(response != null)
+						await this.SendMessageAsync(response, token);
+				} catch(EndOfStreamException)
+				{
+					TraceLogic.TraceSource.TraceEvent(TraceEventType.Stop, 1, "[{0}] Lost connection to named pipe instance", this.ConnectionId);
+					break;
+				}
 			}
 		}
 

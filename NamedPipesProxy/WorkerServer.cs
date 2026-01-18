@@ -13,9 +13,10 @@ namespace AlphaOmega.IO
 	/// This sealed class manages a dedicated named pipe for receiving requests from clients, registering with a registry server,
 	/// and invoking methods on a worker logic object via reflection. It handles asynchronous communication and graceful shutdown.
 	/// </remarks>
-	public sealed class WorkerServer : PipeServerBase, IWorkerServer
+	public sealed class WorkerServer : IWorkerServer
 	{
-		private ServerSideConnection _connection;
+		private readonly IPipeConnectionFactory _connectionFactory;
+		private IPipeConnection _connection;
 		private CancellationTokenSource _cts;
 		private readonly Object _workerLogic;
 		private Task _listenTask;
@@ -55,6 +56,17 @@ namespace AlphaOmega.IO
 		/// <param name="workerLogic">The object containing the methods to invoke when messages are received. Must not be <c>null</c>.</param>
 		/// <exception cref="ArgumentNullException">Thrown if any parameter is <c>null</c>, empty, or contains only whitespace.</exception>
 		public WorkerServer(String registryPipeName, String workerPipeName, String workerId, Object workerLogic)
+			: this(registryPipeName, workerPipeName, workerId, workerLogic, new ServerSideConnection.ServerSideConnectionFactory())
+		{
+		}
+
+		/// <summary>Initializes a new instance of the <see cref="WorkerServer"/> class with specified registry, pipe, and worker identifiers.</summary>
+		/// <param name="registryPipeName">The name of the registry server pipe. Must not be <c>null</c> or whitespace.</param>
+		/// <param name="workerPipeName">The prefix for the worker's unique pipe name. Must not be <c>null</c> or whitespace.</param>
+		/// <param name="workerId">The unique identifier for this worker instance. Must not be <c>null</c> or whitespace.</param>
+		/// <param name="workerLogic">The object containing the methods to invoke when messages are received. Must not be <c>null</c>.</param>
+		/// <exception cref="ArgumentNullException">Thrown if any parameter is <c>null</c>, empty, or contains only whitespace.</exception>
+		internal WorkerServer(String registryPipeName, String workerPipeName, String workerId, Object workerLogic, IPipeConnectionFactory connectionFactory)
 		{
 			if(String.IsNullOrWhiteSpace(registryPipeName))
 				throw new ArgumentNullException(nameof(registryPipeName));
@@ -62,6 +74,8 @@ namespace AlphaOmega.IO
 				throw new ArgumentNullException(nameof(workerId));
 			if(String.IsNullOrWhiteSpace(workerPipeName))
 				throw new ArgumentNullException(nameof(workerPipeName));
+
+			this._connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
 
 			this.RegistryPipeName = registryPipeName ?? throw new ArgumentNullException(nameof(registryPipeName));
 			this.WorkerId = workerId ?? throw new ArgumentNullException(nameof(workerId));
@@ -87,17 +101,17 @@ namespace AlphaOmega.IO
 			CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(this._cts.Token, token);
 
 			await this.RegisterWorkerAsync(linkedCts.Token);
-			this._listenTask = Task.Run(() => this.ListenAsync(linkedCts), linkedCts.Token);
+			this._listenTask = Task.Run(() => this.ListenConnectionAsync(linkedCts), linkedCts.Token);
 		}
 
 		private async Task RegisterWorkerAsync(CancellationToken token)
 		{
 			TraceLogic.TraceSource.TraceInformation("Connecting to registry...");
 
-			this._connection = await ServerSideConnection.CreateClientAsync(".", this.RegistryPipeName, 5000, token);
+			this._connection = await this._connectionFactory.CreateClientAsync(".", this.RegistryPipeName, 5000, token);
 
 			TraceLogic.TraceSource.TraceInformation("Registering with registry...");
-			await SendMessageAsync(this._connection,
+			await this._connection.SendMessageAsync(
 				new PipeMessage(PipeMessageType.RegisterWorker.ToString(), new RegisterWorkerRequest(this.WorkerId, this.PipeName)),
 				token);
 
@@ -105,11 +119,11 @@ namespace AlphaOmega.IO
 			this.IsStarted = true;
 		}
 
-		private async Task ListenAsync(CancellationTokenSource linkedCtsToken)
+		private async Task ListenConnectionAsync(CancellationTokenSource linkedCtsToken)
 		{
 			try
 			{
-				await this.ListenLoopAsync(this._connection, this.HandleMessageAsync, linkedCtsToken.Token);
+				await this._connection.ListenLoopAsync(this.HandleMessageAsync, linkedCtsToken.Token);
 			}
 			catch(OperationCanceledException)
 			{
