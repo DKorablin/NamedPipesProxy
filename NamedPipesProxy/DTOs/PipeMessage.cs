@@ -1,5 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -57,11 +60,6 @@ namespace AlphaOmega.IO.DTOs
 			this.Payload = request.Payload;
 			this.RequestId = request.RequestId;
 		}
-
-		/// <summary>Returns a string representation of the message.</summary>
-		/// <returns>A string describing the message.</returns>
-		public override String ToString()
-			=> $"[{nameof(this.Type)}={this.Type}] {nameof(this.RequestId)}={this.RequestId}; {nameof(this.MessageId)}={this.MessageId}; {nameof(this.Payload)}:{Encoding.UTF8.GetString(this.Payload)}";
 
 		/// <summary>Deserializes the payload to the specified type.</summary>
 		/// <typeparam name="T">The type to deserialize to.</typeparam>
@@ -126,6 +124,58 @@ namespace AlphaOmega.IO.DTOs
 			return result == null
 				? throw new InvalidOperationException("Invalid payload")
 				: result;
+		}
+
+		/// <summary>Returns a string representation of the message.</summary>
+		/// <returns>A string describing the message.</returns>
+		public override String ToString()
+			=> $"[{nameof(this.Type)}={this.Type}] {nameof(this.RequestId)}={this.RequestId}; {nameof(this.MessageId)}={this.MessageId}; {nameof(this.Payload)}:{Encoding.UTF8.GetString(this.Payload)}";
+
+		public async Task ToStream(Stream stream, CancellationToken token)
+		{
+			TraceLogic.TraceSource.TraceInformation("Writing message: {0}", this.ToString());
+
+			Byte[] data = PipeMessage.Serialize(this);
+			Byte[] length = BitConverter.GetBytes(data.Length);
+
+			await stream.WriteAsync(length, 0, length.Length, token);
+			await stream.WriteAsync(data, 0, data.Length, token);
+			await stream.FlushAsync(token);
+		}
+
+		/// <summary>Reads a length-prefixed pipe message from the stream and deserializes it.</summary>
+		/// <param name="stream">Source stream for reading.</param>
+		/// <param name="token">Cancellation token.</param>
+		/// <returns>Deserialized <see cref="PipeMessage"/> instance.</returns>
+		/// <exception cref="InvalidDataException">Thrown if the message length is invalid.</exception>
+		/// <exception cref="EndOfStreamException">Thrown if the stream ends unexpectedly.</exception>
+		public static async Task<PipeMessage> FromStream(Stream stream, CancellationToken token)
+		{
+			Byte[] lengthBuffer = new Byte[4];
+			await ReadExactlyAsync(lengthBuffer);
+
+			Int32 length = BitConverter.ToInt32(lengthBuffer, 0);
+			if(length <= 0)
+				throw new InvalidDataException("Invalid message length");
+
+			Byte[] payload = new Byte[length];
+			await ReadExactlyAsync(payload);
+
+			PipeMessage result = PipeMessage.Deserialize<PipeMessage>(payload);
+			Console.WriteLine($"Received message: {result.ToString()}");
+			return result;
+
+			async Task ReadExactlyAsync(Byte[] buffer)
+			{
+				Int32 offset = 0;
+				while(offset < buffer.Length)
+				{
+					Int32 read = await stream.ReadAsync(buffer, offset, buffer.Length - offset, token);
+					if(read == 0)
+						throw new EndOfStreamException("Unexpected end of stream");
+					offset += read;
+				}
+			}
 		}
 	}
 }

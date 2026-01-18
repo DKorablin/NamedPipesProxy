@@ -19,7 +19,7 @@ namespace AlphaOmega.IO
 			await connection.ReadWriteLock.WaitAsync(token);
 			try
 			{
-				await PipeProtocol.WriteMessageAsync(connection.Pipe, message, token);
+				await message.ToStream(connection.Pipe, token);
 			} finally
 			{
 				connection.ReadWriteLock.Release();
@@ -36,7 +36,7 @@ namespace AlphaOmega.IO
 			{
 				try
 				{
-					PipeMessage message = await PipeProtocol.ReadMessageAsync(connection.Pipe, token);
+					PipeMessage message = await PipeMessage.FromStream(connection.Pipe, token);
 
 					PipeMessage response = await handler.Invoke(message, token);
 					if(response != null)
