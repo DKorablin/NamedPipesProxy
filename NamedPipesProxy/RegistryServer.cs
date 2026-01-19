@@ -116,7 +116,7 @@ namespace AlphaOmega.IO
 				this._activeConnections.TryAdd(connection.ConnectionId, connection);
 
 				// First message must be RegisterWorker
-				PipeMessage firstMessage = await PipeMessage.FromStream(connection.Pipe, token);
+				PipeMessage firstMessage = await PipeMessage.ReadFromStream(connection.Pipe, token);
 				if(firstMessage.Type != PipeMessageType.RegisterWorker.ToString())
 					throw new InvalidOperationException($"Expected {PipeMessageType.RegisterWorker}, got {firstMessage.Type}");
 

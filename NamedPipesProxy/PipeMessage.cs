@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AlphaOmega.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -132,7 +131,7 @@ namespace AlphaOmega.IO
 		public override String ToString()
 			=> $"[{nameof(this.Type)}={this.Type}] {nameof(this.RequestId)}={this.RequestId}; {nameof(this.MessageId)}={this.MessageId}; {nameof(this.Payload)}:{Encoding.UTF8.GetString(this.Payload)}";
 
-		public async Task ToStream(Stream stream, CancellationToken token)
+		internal async Task WriteToStream(Stream stream, CancellationToken token)
 		{
 			TraceLogic.TraceSource.TraceInformation("Writing message: {0}", this.ToString());
 
@@ -150,7 +149,7 @@ namespace AlphaOmega.IO
 		/// <returns>Deserialized <see cref="PipeMessage"/> instance.</returns>
 		/// <exception cref="InvalidDataException">Thrown if the message length is invalid.</exception>
 		/// <exception cref="EndOfStreamException">Thrown if the stream ends unexpectedly.</exception>
-		public static async Task<PipeMessage> FromStream(Stream stream, CancellationToken token)
+		internal static async Task<PipeMessage> ReadFromStream(Stream stream, CancellationToken token)
 		{
 			Byte[] lengthBuffer = new Byte[4];
 			await ReadExactlyAsync(lengthBuffer);

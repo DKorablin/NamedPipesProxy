@@ -93,7 +93,7 @@ namespace AlphaOmega.IO
 			await this.ReadWriteLock.WaitAsync(token);
 			try
 			{
-				await message.ToStream(this.Pipe, token);
+				await message.WriteToStream(this.Pipe, token);
 			} finally
 			{
 				this.ReadWriteLock.Release();
@@ -110,7 +110,7 @@ namespace AlphaOmega.IO
 			await this.ReadWriteLock.WaitAsync(token);
 			try
 			{
-				var result = await PipeMessage.FromStream(this.Pipe, token);
+				var result = await PipeMessage.ReadFromStream(this.Pipe, token);
 				TraceLogic.TraceSource.TraceEvent(TraceEventType.Verbose, 0, "[{0}] Message {1} received", this.ConnectionId, result?.ToString() ?? "null");
 				return result;
 			} finally
@@ -129,7 +129,7 @@ namespace AlphaOmega.IO
 			{
 				try
 				{
-					PipeMessage message = await PipeMessage.FromStream(this.Pipe, token);
+					PipeMessage message = await PipeMessage.ReadFromStream(this.Pipe, token);
 
 					PipeMessage response = await handler.Invoke(message, token);
 					if(response != null)
