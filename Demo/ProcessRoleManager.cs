@@ -38,9 +38,15 @@ namespace Demo
 			var coordinator = new RequestCoordinator(registerServer);
 
 			await coordinator.StartAsync(token);
-			await registerServer.StartAsync(token);
 
-			Console.WriteLine("Registry shutting down");
+			Task delayTask = Task.Delay(Timeout.Infinite, token);
+			Task disconnectTask = registerServer.StartAsync(token);
+			Task completedTask = await Task.WhenAny(delayTask, disconnectTask);
+
+			if(completedTask == delayTask)
+				Console.WriteLine("Registry shutting down");
+			else
+				Console.WriteLine("Registry server failed");
 			await registerServer.StopAsync();
 		}
 

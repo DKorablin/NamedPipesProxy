@@ -64,15 +64,15 @@ namespace AlphaOmega.IO
 		}
 
 		/// <inheritdoc/>
-		public async Task StartAsync(CancellationToken token)
+		public Task StartAsync(CancellationToken token)
 		{
-			using(var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(this._cts.Token, token))
-			{
-				var linkedToken = linkedCts.Token;
+			CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(this._cts.Token, token);
+			CancellationToken linkedToken = linkedCts.Token;
 
+			Task serverTask = Task.Run(async () =>
+			{
 				try
 				{
-					this.IsStarted = true;
 					while(!linkedToken.IsCancellationRequested)
 					{
 						IPipeConnection connection = null;
@@ -80,6 +80,7 @@ namespace AlphaOmega.IO
 						try
 						{
 							connection = await this._connectionFactory.CreateServerAsync(this.PipeName, linkedToken);
+							this.IsStarted = true;
 							_ = this.ListenConnectionAsync(connection, linkedToken);
 						} catch(OperationCanceledException)
 						{
@@ -94,8 +95,11 @@ namespace AlphaOmega.IO
 				} finally
 				{
 					this.IsStarted = false;
+					linkedCts.Dispose();
 				}
-			}
+			}, linkedToken);
+
+			return serverTask;
 		}
 
 		/// <inheritdoc/>
