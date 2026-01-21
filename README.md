@@ -1,5 +1,8 @@
 # NamedPipesProxy for .NET
 
+[![Auto build](https://github.com/DKorablin/NamedPipesProxy/actions/workflows/release.yml/badge.svg)](https://github.com/DKorablin/NamedPipesProxy/releases/latest)
+[![Nuget](https://img.shields.io/nuget/v/AlphaOmega.NamedPipesProxy)](https://www.nuget.org/packages/AlphaOmega.NamedPipesProxy)
+
 ## Overview
 
 `NamedPipesProxy` is a lightweight and powerful .NET library that simplifies inter-process communication (IPC) using named pipes. It enables you to create a dialogue between different processes by generating dynamic proxy classes for your interfaces. This allows you to make remote procedure calls (RPC) as if you were invoking a local method, abstracting away the underlying communication complexity.
