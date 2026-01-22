@@ -69,13 +69,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report-windows
-        path: .coverage/
+        path: ${{env.TestCoverageDir}}
         retention-days: 30
     - name: Publish Coverage Summary
       if: always()
       run: |
-        if (Test-Path ".coverage/coverage.${{steps.tfm.outputs.framework}}.json") {
-          $json = Get-Content ".coverage/coverage.${{steps.tfm.outputs.framework}}.json" | ConvertFrom-Json
+        if (Test-Path "${{env.TestCoverageDir}}coverage.${{steps.tfm.outputs.framework}}.json") {
+          $json = Get-Content "${{env.TestCoverageDir}}coverage.${{steps.tfm.outputs.framework}}.json" | ConvertFrom-Json
           $coverage = [math]::Round($json.coverage * 100, 2)
-          Write-Host "::notice::Code Coverage: ${coverage}% (Windows, net9)"
+          Write-Host "::notice::Code Coverage: ${coverage}% (Windows, ${{steps.tfm.outputs.framework}})"
         }
