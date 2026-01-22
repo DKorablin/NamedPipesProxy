@@ -26,7 +26,7 @@ on:
       dotNetVersion:
         description: 'Determine the version of .NET used to configure the environment'
         required: false
-        default: '8.0.x'
+        default: '9.0.x'
       newVersion:
         description: 'Optionally specify a new version number (overrides automatic versioning)'
         required: false
@@ -39,7 +39,7 @@ permissions:
 
 env:
   SolutionName: ${{github.event.repository.name}}
-  DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
+  DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
   ArtifactsDir: ${{github.workspace}}\bin\
 
 jobs:

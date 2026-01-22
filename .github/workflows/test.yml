@@ -11,11 +11,11 @@ on:
       dotNetVersion:
         description: 'Determine the version of .NET used to configure the environment'
         required: false
-        default: '8.0.x'
+        default: '9.0.x'
 
 env:
   SolutionName: ${{github.event.repository.name}}
-  DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
+  DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
 
 jobs:
   test_net:
