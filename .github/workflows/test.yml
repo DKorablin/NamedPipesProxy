@@ -55,10 +55,13 @@ jobs:
         /p:Configuration=Release
         /p:SignAssembly=true
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+        /p:CollectCoverage=true
+        /p:CoverletOutputFormat="cobertura%2cjson%2copencover"
+        /p:Exclude="[NamedPipesProxy.Tests]*"
     - name: Generate Code Coverage Report
       if: always()
       run: |
-        & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -Framework ${{steps.tfm.outputs.framework}}
+        & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -SkipTests true -Framework ${{steps.tfm.outputs.framework}}
     - name: Upload Coverage Reports
       if: always()
       uses: actions/upload-artifact@v4

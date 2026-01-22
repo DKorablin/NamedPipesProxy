@@ -5,7 +5,8 @@
 param(
 	[String]$Configuration = "Debug",
 	[String]$Framework = "net9",
-	[String]$OutputPath = ".coverage"
+	[String]$OutputPath = ".coverage",
+	[Switch]$SkipTests = $false
 )
 
 # Define paths - script is in .github/scripts, so we need to go up two levels to repo root
@@ -39,26 +40,30 @@ Write-Host "Solution Root: $SolutionRoot" -ForegroundColor Yellow
 Write-Host ""
 
 # Run tests with coverage collection using coverlet
-Write-Host "Running tests with coverage collection..." -ForegroundColor Green
-$CoverletArgs = @(
-	"test",
-	$TestProjectPath,
-	"--configuration", $Configuration,
-	"--framework", $Framework,
-	"--no-restore",
-	"--logger", "console;verbosity=normal",
-	"/p:CollectCoverage=true",
-	"/p:CoverletOutputFormat=cobertura%2cjson%2copencover",
-	"/p:CoverletOutput=$CoverageOutputPath/",
-	"/p:Exclude=`"[NamedPipesProxy.Tests]*`""
-)
+if (-not $SkipTests) {
+	Write-Host "Running tests with coverage collection..." -ForegroundColor Green
+	$CoverletArgs = @(
+		"test",
+		$TestProjectPath,
+		"--configuration", $Configuration,
+		"--framework", $Framework,
+		"--no-restore",
+		"--logger", "console;verbosity=normal",
+		"/p:CollectCoverage=true",
+		"/p:CoverletOutputFormat=cobertura%2cjson%2copencover",
+		"/p:CoverletOutput=$CoverageOutputPath/",
+		"/p:Exclude=`"[NamedPipesProxy.Tests]*`""
+	)
 
-& dotnet @CoverletArgs
-$TestExitCode = $LASTEXITCODE
+	& dotnet @CoverletArgs
+	$TestExitCode = $LASTEXITCODE
 
-if ($TestExitCode -ne 0) {
-	Write-Host "Tests failed with exit code: $TestExitCode" -ForegroundColor Red
-	exit $TestExitCode
+	if ($TestExitCode -ne 0) {
+		Write-Host "Tests failed with exit code: $TestExitCode" -ForegroundColor Red
+		exit $TestExitCode
+	}
+} else {
+	Write-Host "Skipping test execution (SkipTests flag enabled)" -ForegroundColor Yellow
 }
 
 Write-Host ""
