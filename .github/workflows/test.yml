@@ -16,7 +16,7 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
-  TestCoverageDir: ${{github.workspace}}\.coverage
+  TestCoverageDir: ${{github.workspace}}\.coverage\
 
 defaults:
   run:
@@ -62,7 +62,7 @@ jobs:
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
         /p:CollectCoverage=true
         /p:CoverletOutputFormat="cobertura%2cjson%2copencover"
-        /p:CoverletOutput="${{env.TestCoverageDir}}\"
+        /p:CoverletOutput="${{env.TestCoverageDir}}"
         /p:Include="[${{env.SolutionName}}]*"
     - name: Install ReportGenerator tool
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
@@ -74,12 +74,19 @@ jobs:
       run: |
         echo "List Coverage Files:"
         ls ${{env.TestCoverageDir}} -Recurse
+    - name: Verify Path Expansion
+      if: always()
+      run: |
+        Write-Host "TestCoverageDir: ${{env.TestCoverageDir}}"
+        Write-Host "github.workspace: ${{github.workspace}}"
+        Write-Host "Expanded path exists: $(Test-Path '${{env.TestCoverageDir}}')"
+        Write-Host "File count: $(Get-ChildItem '${{env.TestCoverageDir}}' -Recurse | Measure-Object | Select-Object -ExpandProperty Count)"
     - name: Upload Coverage Reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report-windows
-        path: ${{env.TestCoverageDir}}
+        path: ${{github.workspace}}/.coverage
         if-no-files-found: error
         overwrite: true
     - name: Publish Coverage Summary
