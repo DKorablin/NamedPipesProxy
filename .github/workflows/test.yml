@@ -50,8 +50,9 @@ jobs:
           ${{ runner.os }}-nuget-
     - name: Testing .NET
       run: >
-        dotnet test --framework ${{steps.tfm.outputs.framework}}
-        /p:configuration Release
+        dotnet test
+        /p:Framework=${{steps.tfm.outputs.framework}}
+        /p:Configuration=Release
         /p:SignAssembly=true
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
     - name: Generate Code Coverage Report
