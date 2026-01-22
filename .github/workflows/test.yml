@@ -16,6 +16,7 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
+  TestCoverageDir: ${{github.workspace}}\.coverage\
 
 jobs:
   test_net:
@@ -57,12 +58,16 @@ jobs:
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
         /p:CollectCoverage=true
         /p:CoverletOutputFormat="cobertura%2cjson%2copencover"
-        /p:CoverletOutput=.coverage
+        /p:CoverletOutput=${{TestCoverageDir}}
         /p:Exclude="[NamedPipesProxy.Tests]*"
     - name: Generate Code Coverage Report
       if: always()
-      run: |
-        & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -SkipTests -Framework ${{steps.tfm.outputs.framework}}
+      run: >
+        ".\.github\scripts\Generate-CoverageReport.ps1"
+        -Configuration Release
+        -OutputPath ${{TestCoverageDir}}
+        -SkipTests
+        -Framework ${{steps.tfm.outputs.framework}}
     - name: Upload Coverage Reports
       if: always()
       uses: actions/upload-artifact@v4
