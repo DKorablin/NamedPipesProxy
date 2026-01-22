@@ -1,4 +1,4 @@
-# Workflow Description:
+﻿# Workflow Description:
 # This workflow automates the build, signing, packaging, and release process for the NamedPipesProxy library.
 # 
 # Steps Overview:
