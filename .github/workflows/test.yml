@@ -22,6 +22,12 @@ jobs:
     name: Testing .NET (Windows)
     runs-on: windows-latest
     steps:
+    - name: Decoding strong-name key
+      id: sign_key_file
+      uses: timheuer/base64-to-file@v1.2
+      with:
+        fileName: 'Signature.snk'
+        encodedString: ${{secrets.SIGN_ASM_KEY}}
     - uses: actions/checkout@v4
       with:
         submodules: true
@@ -43,8 +49,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
     - name: Testing .NET
-      run: |
-        dotnet test --framework ${{steps.tfm.outputs.framework}} --configuration Release
+      run: >
+        dotnet test --framework ${{steps.tfm.outputs.framework}}
+        /p:configuration Release
+        /p:SignAssembly=true
+        /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
     - name: Generate Code Coverage Report
       if: always()
       run: |
