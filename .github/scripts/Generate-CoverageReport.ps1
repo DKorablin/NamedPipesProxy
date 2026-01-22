@@ -26,7 +26,7 @@ $TestProjectPath = Join-Path $SolutionRoot "NamedPipesProxy.Tests"
 
 # Create output directory if it doesn't exist
 $CoverageOutputPath = if ([System.IO.Path]::IsPathRooted($OutputPath)) {
-	$OutputPath.TrimEnd('\')
+	$OutputPath.TrimEnd('\').TrimEnd('/')
 } else {
 	Join-Path $SolutionRoot $OutputPath
 }
@@ -57,7 +57,7 @@ if (-not $SkipTests) {
 		"--logger", "console;verbosity=normal",
 		"/p:CollectCoverage=true",
 		"/p:CoverletOutputFormat=cobertura%2cjson%2copencover",
-		"/p:CoverletOutput=$CoverageOutputPath/",
+		"/p:CoverletOutput=$($CoverageOutputPath)/",
 		"/p:Exclude=`"[NamedPipesProxy.Tests]*`""
 	)
 
