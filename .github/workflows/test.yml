@@ -62,12 +62,8 @@ jobs:
         /p:Exclude="[NamedPipesProxy.Tests]*"
     - name: Generate Code Coverage Report
       if: always()
-      run: >
-        ".\.github\scripts\Generate-CoverageReport.ps1"
-        -Configuration Release
-        -OutputPath ${{env.TestCoverageDir}}
-        -SkipTests
-        -Framework ${{steps.tfm.outputs.framework}}
+      run: |
+        & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -OutputPath ${{env.TestCoverageDir}} -SkipTests -Framework ${{steps.tfm.outputs.framework}}
     - name: Upload Coverage Reports
       if: always()
       uses: actions/upload-artifact@v4
