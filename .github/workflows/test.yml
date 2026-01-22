@@ -40,11 +40,9 @@ jobs:
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
-    - name: Restore
-      run: dotnet restore
     - name: Testing .NET
       run: |
-        dotnet test --no-restore --framework ${{steps.tfm.outputs.framework}} --configuration Release
+        dotnet test --framework ${{steps.tfm.outputs.framework}} --configuration Release
     - name: Generate Code Coverage Report
       if: always()
       run: |
