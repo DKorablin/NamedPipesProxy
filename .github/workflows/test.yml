@@ -16,7 +16,7 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
-  TestCoverageDir: ${{github.workspace}}\.coverage\
+  TestCoverageDir: ${{github.workspace}}\.coverage
 
 defaults:
   run:
@@ -62,7 +62,7 @@ jobs:
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
         /p:CollectCoverage=true
         /p:CoverletOutputFormat="cobertura%2cjson%2copencover"
-        /p:CoverletOutput=${{env.TestCoverageDir}}
+        /p:CoverletOutput="${{env.TestCoverageDir}}\"
         /p:Include="[${{env.SolutionName}}]*"
     - name: Install ReportGenerator tool
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
