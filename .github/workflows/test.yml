@@ -1,13 +1,19 @@
-name: Test, Build
+﻿name: Test, Build
 
 on:
   pull_request:
     branches: [ "master" ]
 
   workflow_dispatch:
+    inputs:
+      dotNetVersion:
+        description: 'Determine the version of .NET used to configure the environment'
+        required: false
+        default: '8.0.x'
 
 env:
   SolutionName: ${{github.event.repository.name}}
+  DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
 
 jobs:
   test_net:
@@ -17,10 +23,35 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+    - name: Extract TFM from Version
+      id: tfm
+      run: |
+        $version = "${{env.DotNetVersion}}"
+        $majorVersion = $version -replace '\..*', ''
+        echo "framework=net$majorVersion" >> $env:GITHUB_OUTPUT
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: ${{env.DotNetVersion}}
     - name: Testing .NET
       run: |
-        dotnet test --no-restore --framework net8.0 --configuration Release
+        dotnet test --no-restore --framework ${{steps.tfm.outputs.framework}} --configuration Release
+    - name: Generate Code Coverage Report
+      if: always()
+      run: |
+        & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -Framework ${{steps.tfm.outputs.framework}}
+    - name: Upload Coverage Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-windows
+        path: .coverage/
+        retention-days: 30
+    - name: Publish Coverage Summary
+      if: always()
+      run: |
+        if (Test-Path ".coverage/coverage.${{steps.tfm.outputs.framework}}.json") {
+          $json = Get-Content ".coverage/coverage.${{steps.tfm.outputs.framework}}.json" | ConvertFrom-Json
+          $coverage = [math]::Round($json.coverage * 100, 2)
+          Write-Host "::notice::Code Coverage: ${coverage}% (Windows, net9)"
+        }

@@ -84,7 +84,6 @@ namespace NamedPipesProxy.Tests
 		public void Deserialize_TypeArray_ReturnsCorrectObjects()
 		{
 			Object[] payload = { "str", 123 };
-			Byte[] bytes = PipeMessage.Serialize(payload);
 			PipeMessage message = new PipeMessage("Type", payload);
 			Object[] result = message.Deserialize(new Type[] { typeof(String), typeof(Int32) });
 			Assert.AreEqual("str", result[0]);
