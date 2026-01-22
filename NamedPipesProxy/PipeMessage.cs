@@ -86,7 +86,10 @@ namespace AlphaOmega.IO
 		public Object[] Deserialize(Type[] targetTypes)
 		{
 			String json = Encoding.UTF8.GetString(this.Payload);
-			JArray jArray = JArray.Parse(json);
+			JToken jToken = JToken.Parse(json);
+			JArray jArray = jToken is JArray array
+				? array
+				: new JArray(jToken);
 
 			if(jArray.Count != targetTypes.Length)
 				throw new InvalidOperationException($"Parameter count mismatch: Expected {targetTypes.Length}, got {jArray.Count}");
