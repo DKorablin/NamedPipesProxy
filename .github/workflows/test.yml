@@ -58,14 +58,14 @@ jobs:
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
         /p:CollectCoverage=true
         /p:CoverletOutputFormat="cobertura%2cjson%2copencover"
-        /p:CoverletOutput=${{TestCoverageDir}}
+        /p:CoverletOutput=${{env.TestCoverageDir}}
         /p:Exclude="[NamedPipesProxy.Tests]*"
     - name: Generate Code Coverage Report
       if: always()
       run: >
         ".\.github\scripts\Generate-CoverageReport.ps1"
         -Configuration Release
-        -OutputPath ${{TestCoverageDir}}
+        -OutputPath ${{env.TestCoverageDir}}
         -SkipTests
         -Framework ${{steps.tfm.outputs.framework}}
     - name: Upload Coverage Reports
