@@ -16,7 +16,7 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
-  TestCoverageDir: ${{github.workspace}}\.coverage\
+  TestCoverageDir: ${{github.workspace}}\report\
 
 defaults:
   run:
@@ -86,9 +86,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report-windows
-        path: ${{github.workspace}}/.coverage
+        path: ${{env.TestCoverageDir}}
         if-no-files-found: error
         overwrite: true
+        include-hidden-files: true
     - name: Publish Coverage Summary
       if: always()
       run: |

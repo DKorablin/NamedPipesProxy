@@ -58,7 +58,7 @@ if (-not $SkipTests) {
 		"/p:CollectCoverage=true",
 		"/p:CoverletOutputFormat=cobertura%2cjson%2copencover",
 		"/p:CoverletOutput=$($CoverageOutputPath)/",
-		"/p:Exclude=`"[NamedPipesProxy.Tests]*`""
+		"/p:Include=`"[NamedPipesProxy]*`""
 	)
 
 	& dotnet @CoverletArgs
