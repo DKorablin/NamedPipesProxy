@@ -23,7 +23,13 @@ if (-not $ScriptDirectory) {
 
 $SolutionRoot = Split-Path -Parent (Split-Path -Parent $ScriptDirectory)
 $TestProjectPath = Join-Path $SolutionRoot "NamedPipesProxy.Tests"
-$CoverageOutputPath = Join-Path $SolutionRoot $OutputPath
+
+# Create output directory if it doesn't exist
+$CoverageOutputPath = if ([System.IO.Path]::IsPathRooted($OutputPath)) {
+	$OutputPath.TrimEnd('\')
+} else {
+	Join-Path $SolutionRoot $OutputPath
+}
 
 # Create output directory if it doesn't exist
 if (-not (Test-Path $CoverageOutputPath)) {
