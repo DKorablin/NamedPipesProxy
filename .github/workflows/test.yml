@@ -16,7 +16,11 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
-  TestCoverageDir: ${{github.workspace}}\.coverage
+  TestCoverageDir: ${{github.workspace}}\.coverage\
+
+defaults:
+  run:
+    shell: pwsh
 
 jobs:
   test_net:
@@ -66,6 +70,10 @@ jobs:
       if: always()
       run: |
         & ".\.github\scripts\Generate-CoverageReport.ps1" -Configuration Release -OutputPath ${{env.TestCoverageDir}} -SkipTests -Framework ${{steps.tfm.outputs.framework}}
+    - name: Debug - List Coverage Files
+      run: |
+        echo "List Coverage Files:"
+        ls ${{env.TestCoverageDir}} -Recurse
     - name: Upload Coverage Reports
       if: always()
       uses: actions/upload-artifact@v4
