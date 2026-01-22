@@ -45,7 +45,7 @@ sequenceDiagram
 	participant Proxy as Proxy<T>
 	participant Invoker as RemoteProcessingLogicInvoker
 	participant Server as IRegistryServer
-	participant Worker
+	participant Worker as IWorkerServer
 
 	ClientApp->>Proxy: Calls remote method (e.g., DoWorkAsync())
 	Proxy->>Invoker: Intercepts call
