@@ -16,7 +16,7 @@ on:
 env:
   SolutionName: ${{github.event.repository.name}}
   DotNetVersion: ${{github.event.inputs.dotNetVersion || '9.0.x'}}
-  TestCoverageDir: ${{github.workspace}}\.coverage
+  TestCoverageDir: ${{github.workspace}}\.coverage\
 
 defaults:
   run:
@@ -80,7 +80,8 @@ jobs:
       with:
         name: coverage-report-windows
         path: ${{env.TestCoverageDir}}
-        retention-days: 30
+        if-no-files-found: error
+        overwrite: true
     - name: Publish Coverage Summary
       if: always()
       run: |
