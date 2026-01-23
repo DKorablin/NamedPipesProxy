@@ -125,20 +125,33 @@ namespace AlphaOmega.IO
 		/// <param name="token">Cancellation token.</param>
 		public async Task ListenLoopAsync(Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler, CancellationToken token)
 		{
-			while(!token.IsCancellationRequested && this.Pipe.IsConnected)
+			while(ShouldContinueListening())
 			{
-				try
-				{
-					PipeMessage message = await PipeMessage.ReadFromStream(this.Pipe, token);
-
-					PipeMessage response = await handler.Invoke(message, token);
-					if(response != null)
-						await this.SendMessageAsync(response, token);
-				} catch(EndOfStreamException)
-				{
-					TraceLogic.TraceSource.TraceEvent(TraceEventType.Stop, 1, "[{0}] Lost connection to named pipe instance", this.ConnectionId);
+				if(!await this.ProcessMessageAsync(handler, token))
 					break;
-				}
+			}
+
+			Boolean ShouldContinueListening()
+				=> !token.IsCancellationRequested && this.Pipe.IsConnected;
+		}
+
+		private async Task<Boolean> ProcessMessageAsync(
+			Func<PipeMessage, CancellationToken, Task<PipeMessage>> handler,
+			CancellationToken token)
+		{
+			try
+			{
+				PipeMessage message = await PipeMessage.ReadFromStream(this.Pipe, token);
+				PipeMessage response = await handler.Invoke(message, token);
+
+				if(response != null)
+					await this.SendMessageAsync(response, token);
+
+				return true; // Continue loop
+			} catch(EndOfStreamException)
+			{
+				TraceLogic.TraceSource.TraceEvent(TraceEventType.Stop, 1, "[{0}] Lost connection to named pipe instance", this.ConnectionId);
+				return false; // Exit loop
 			}
 		}
 

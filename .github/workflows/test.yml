@@ -93,8 +93,12 @@ jobs:
     - name: Publish Coverage Summary
       if: always()
       run: |
-        if (Test-Path "${{env.TestCoverageDir}}coverage.${{steps.tfm.outputs.framework}}.json") {
-          $json = Get-Content "${{env.TestCoverageDir}}coverage.${{steps.tfm.outputs.framework}}.json" | ConvertFrom-Json
-          $coverage = [math]::Round($json.coverage * 100, 2)
+        $xmlPath = Join-Path -Path "${{env.TestCoverageDir}}" -ChildPath "coverage.${{steps.tfm.outputs.framework}}.cobertura.xml"
+        if (Test-Path $xmlPath) {
+          [xml]$xml = Get-Content $xmlPath
+          $lineRate = $xml.coverage.'line-rate'
+          $coverage = [math]::Round([double]$lineRate * 100, 2)
           Write-Host "::notice::Code Coverage: ${coverage}% (Windows, ${{steps.tfm.outputs.framework}})"
+        } else {
+          Write-Host "::warning:: Cobertura coverage file not found at $xmlPath"
         }

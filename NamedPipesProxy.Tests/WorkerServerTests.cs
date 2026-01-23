@@ -13,6 +13,7 @@ namespace NamedPipesProxy.Tests
 {
 	/// <summary>Unit tests for the WorkerServer class.</summary>
 	[TestFixture]
+	[Timeout(5000)]
 	public class WorkerServerTests
 	{
 		private Mock<IPipeConnectionFactory> _connectionFactory;

@@ -8,6 +8,7 @@ using NUnit.Framework;
 namespace NamedPipesProxy.Tests
 {
 	[TestFixture]
+	[Timeout(5000)]
 	public class PipeMessageTests
 	{
 		private class TestPayload

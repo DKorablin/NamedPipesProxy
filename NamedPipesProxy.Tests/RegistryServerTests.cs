@@ -15,6 +15,7 @@ namespace NamedPipesProxy.Tests
 {
 	/// <summary>Unit tests for the RegistryServer class.</summary>
 	[TestFixture]
+	[Timeout(5000)]
 	public class RegistryServerTests
 	{
 		private RegistryServer _registryServer;
